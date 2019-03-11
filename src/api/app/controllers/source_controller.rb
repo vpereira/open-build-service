@@ -1136,17 +1136,9 @@ class SourceController < ApplicationController
   # POST /source/<project>?cmd=set_flag&repository=:opt&arch=:opt&flag=flag&status=status
   def project_command_set_flag
     required_parameters :flag, :status
+    authorize @project, :update?
 
-    # Raising permissions afterwards is not secure. Do not allow this by default.
-    unless User.current.is_admin?
-      if params[:flag] == 'access' && params[:status] == 'enable' && !@project.enabled_for?('access', params[:repository], params[:arch])
-        raise Project::ForbiddenError
-      end
-      if params[:flag] == 'sourceaccess' && params[:status] == 'enable' &&
-         !@project.enabled_for?('sourceaccess', params[:repository], params[:arch])
-        raise Project::ForbiddenError
-      end
-    end
+    raise Project::ForbiddenError unless access_allowed? || source_access_allowed?
 
     obj_set_flag(@project)
   end
@@ -1205,5 +1197,13 @@ class SourceController < ApplicationController
                                         error_message,
                                         rdata_field,
                                         object)
+  end
+
+  def access_allowed?
+    params[:flag] == 'access' && params[:status] == 'enable' && @project.enabled_for?('access', params[:repository], params[:arch])
+  end
+
+  def source_access_allowed?
+    params[:flag] == 'sourceaccess' && params[:status] == 'enable' && @project.enabled_for?('sourceaccess', params[:repository], params[:arch])
   end
 end
